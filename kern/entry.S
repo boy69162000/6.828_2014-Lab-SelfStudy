@@ -57,16 +57,21 @@ entry:
 	movl	$(RELOC(entry_pgdir)), %eax
 	movl	%eax, %cr3
 	# Turn on paging.
-	movl	%cr0, %eax
+	movl	%cr0, %eax  
 	orl	$(CR0_PE|CR0_PG|CR0_WP), %eax
 	movl	%eax, %cr0
+    #jyhsu: Paging is enabled after "movl %eax, %cr0"
 
 	# Now paging is enabled, but we're still running at a low EIP
 	# (why is this okay?).  Jump up above KERNBASE before entering
 	# C code.
+    #jyhsu: Running at a low EIP is ok because it also mapping low
+    #       physical address to real address (but not writable).
 	mov	$relocated, %eax
 	jmp	*%eax
 relocated:
+    #jyhsu: We're now in virtual address. So if commenting out
+    #       "movl %eax, %cr0", the code will fail here(nuke EBP).
 
 	# Clear the frame pointer register (EBP)
 	# so that once we get into debugging C code,

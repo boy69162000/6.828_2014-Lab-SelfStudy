@@ -33,6 +33,17 @@ i386_init(void)
 	// Can't call cprintf until after we do this!
 	cons_init();
 
+    //jyhsu: Lab1 test code part 1
+    /*
+    unsigned i = 0x00646c72;
+    cprintf("H%x, Wo%s", 57616, &i); //57616=0xe110, 72='r', 6c='l', 64='d'
+    */
+
+    //jyhsu: Lab1 test code part 2
+    /*
+    cprintf("x=%d y=%d", 3); //va_arg does not check if ap reach eo list
+    */
+
 	cprintf("6828 decimal is %o octal!\n", 6828);
 
 	// Test the stack backtrace function (lab 1 only)
