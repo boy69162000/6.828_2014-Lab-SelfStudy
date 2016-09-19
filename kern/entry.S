@@ -79,7 +79,7 @@ relocated:
 	movl	$0x0,%ebp			# nuke frame pointer
 
 	# Set the stack pointer
-	movl	$(bootstacktop),%esp
+	movl	$(bootstacktop),%esp #jyhsu: init kern stack ptr
 
 	# now to C code
 	call	i386_init
@@ -93,9 +93,9 @@ spin:	jmp	spin
 # boot stack
 ###################################################################
 	.p2align	PGSHIFT		# force page alignment
-	.globl		bootstack
+	.globl		bootstack    #jyhsu: 0xf0108000
 bootstack:
-	.space		KSTKSIZE
-	.globl		bootstacktop   
+	.space		KSTKSIZE     #jyhsu: kern stack size = 8*PGSIZE = 0x8000
+	.globl		bootstacktop #jyhsu: 0xf0110000, stack ptr
 bootstacktop:
 

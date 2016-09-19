@@ -8,10 +8,30 @@
 #include <kern/console.h>
 
 // Test the stack backtrace function (lab 1 only)
+//jyhsu: func located at 0xf0100040
 void
 test_backtrace(int x)
 {
-	cprintf("entering test_backtrace %d\n", x);
+    /*jyhsu:
+        (in parent)
+        push {last_arg}
+        ...
+        push {first_arg}
+        call {blah} #ret addr pushing done here
+        (in func)
+        mov %esp, %ebp
+        push %ebp
+        (normal func code)
+        
+        stack:
+            ---------high addr, esp before preparing func call
+            func arg
+            ret addr
+            pushed ebp
+            ---------low addr, esp before normal func code
+    */
+
+    cprintf("entering test_backtrace %d\n", x);
 	if (x > 0)
 		test_backtrace(x-1);
 	else
