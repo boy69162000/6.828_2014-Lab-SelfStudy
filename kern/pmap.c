@@ -382,7 +382,26 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+
+    //jyhsu: my code
+    struct PageInfo *pg_pte;
+
+    if (!pgdir[PDX(va)]) {
+        if (!create)
+	        return NULL;
+        else {
+            pg_pte = page_alloc(ALLOC_ZERO);
+            if (!pg_pte)
+                return NULL;
+
+            pg_pte->pp_ref++;
+            pgdir[PDX(va)] = (page2pa(pg_pte) | PTE_SYSCALL);
+        }
+    }
+    else
+        pg_pte = pa2page(pgdir[PDX(va)]);
+
+    return ((pte_t *)page2kva(pg_pte))+PTX(va);
 }
 
 //
@@ -400,6 +419,20 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+
+    //jyhsu: my code
+    uint32_t np = (uint32_t) size/PGSIZE;
+    uintptr_t i;
+    physaddr_t j;
+    pte_t *pte;
+    struct PageInfo *page;
+
+    for (i = 0; i < (uintptr_t)np; i++) {
+        j = i;
+        pte = pgdir_walk(pgdir, (void *)(va+i*PGSIZE), 1);
+        *pte = (pa+j*PGSIZE) | perm | PTE_P;
+    }
+
 }
 
 //
@@ -431,6 +464,20 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+
+    //jyhsu: my code
+    physaddr_t pa = page2pa(pp);
+    pte_t *pte = pgdir_walk(pgdir, va, 1);
+
+    if (!pte)
+        return -E_NO_MEM;
+
+    pp->pp_ref++;   //jyhsu: one code path of the corner case: rm then map
+    if (pte)    
+        page_remove(pgdir, va);
+
+    *pte = pa | perm | PTE_P;
+
 	return 0;
 }
 
@@ -449,7 +496,17 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+
+    //jyhsu: my code
+    pte_t *pte = pgdir_walk(pgdir, va, 0);
+
+    if (!pte)
+	    return NULL;
+    if (*pte == 0)
+        return NULL;
+
+    *pte_store = pte;
+    return pa2page(*pte);
 }
 
 //
@@ -471,6 +528,16 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+
+    //jyhsu: my code
+    pte_t *pte;
+    struct PageInfo *page = page_lookup(pgdir, va, &pte);
+
+    if (page) {
+        page_decref(page);
+        tlb_invalidate(pgdir, va);
+        *pte = 0x0;
+    }
 }
 
 //
