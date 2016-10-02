@@ -126,8 +126,9 @@ boot_alloc(uint32_t n)
 void
 mem_init(void)
 {
-	uint32_t cr0;
+	uint32_t cr0, i;
 	size_t n;
+    pte_t *pte;
 
 	// Find out how much memory the machine has (npages & npages_basemem).
 	i386_detect_memory();
@@ -184,7 +185,14 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
-
+    
+    //jyhsu: my code
+    for (i = 0; i < n; i += PGSIZE) {
+        pte = pgdir_walk(kern_pgdir, pages+i, 1);
+        *pte = (*pte & ~PTE_U) | PTE_W;
+    }
+    boot_map_region(kern_pgdir, UPAGES, ROUNDUP(n, PGSIZE), PADDR(pages), PTE_U | PTE_P);
+    
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -197,6 +205,13 @@ mem_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 
+    //jyhsu: my code
+    boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W | PTE_P);
+    for (i = 0; i < PTSIZE-KSTKSIZE; i += PGSIZE) {
+        pte = pgdir_walk(kern_pgdir, (void *)(KSTACKTOP-PTSIZE+i), 1);
+        *pte &= ~PTE_P;
+    }
+
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -205,6 +220,9 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
+
+    //jyhsu: my code
+    boot_map_region(kern_pgdir, KERNBASE, 0xffffffff-KERNBASE, 0x0, PTE_W | PTE_P);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
