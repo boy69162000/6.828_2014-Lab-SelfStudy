@@ -67,6 +67,10 @@ entry:
 	# C code.
     #jyhsu: Running at a low EIP is ok because it also mapping low
     #       physical address to real address (but not writable).
+    #jyhsu: In lab2, between page enabled and jumpped to KERNBASE, 
+    #       entry_pgdir is a simple page dir, and only do two mappings:
+    #       maps pa to real addr, and maps KERNBASE to real addr.
+    #       This is how the kernel handle this situation.
 	mov	$relocated, %eax
 	jmp	*%eax
 relocated:

@@ -224,6 +224,13 @@ mem_init(void)
     //jyhsu: my code
     boot_map_region(kern_pgdir, KERNBASE, 0xffffffff-KERNBASE, 0x0, PTE_W | PTE_P);
 
+    //jyhsu: Maximum physical memory this manage system can support is
+    //       256MB (0x10000000) since users can only access memory by 
+    //       va (pa+KERNBASE). The space overhead is
+    //       ROUNDUP(mem/PGSIZE, NPTENTRIES)/NPTENTRIES*PGSIZE+npages*4+PGSIZE
+    //                 NPAGES                   NPT            PageInfo   PD
+    //       On max mem, overhead = 516KB.
+
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
