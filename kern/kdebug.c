@@ -205,6 +205,18 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	//	which one.
 	// Your code here.
 
+    //jyhsu: my code
+    stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
+
+    if (lline > rline)
+        return -1;
+
+    if (lfun <= rfun) { //jyhsu: normal file
+        info->eip_line = stabs[lline].n_value;
+    }
+    else {              //jyhsu: asm file
+        info->eip_line = stabs[lline].n_value - stabs[lfun].n_value;
+    }
 
 	// Search backwards from the line number for the relevant filename
 	// stab.

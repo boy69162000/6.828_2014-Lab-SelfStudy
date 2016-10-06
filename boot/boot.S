@@ -25,6 +25,10 @@ start:
   #   For backwards compatibility with the earliest PCs, physical
   #   address line 20 is tied low, so that addresses higher than
   #   1MB wrap around to zero by default.  This code undoes this.
+  #jyhsu: This section contains PS/2 controller I/O
+  #       0x64 is status register, and bit 1 is controller's input buffer status
+  #       Also, 0x64 is command register. 0x60 is data port.
+  #       we set A20 gate to 1 through 0x60, the data port.
 seta20.1:
   inb     $0x64,%al               # Wait for not busy
   testb   $0x2,%al
@@ -48,7 +52,8 @@ seta20.2:
   lgdt    gdtdesc
   movl    %cr0, %eax
   orl     $CR0_PE_ON, %eax
-  movl    %eax, %cr0
+  movl    %eax, %cr0              
+  #jyhsu: after the line above, we switched to 32-bit mode
   
   # Jump to next instruction, but in 32-bit code segment.
   # Switches processor into 32-bit mode.
@@ -65,7 +70,7 @@ protcseg:
   movw    %ax, %ss                # -> SS: Stack Segment
   
   # Set up the stack pointer and call into C.
-  movl    $start, %esp
+  movl    $start, %esp            #jyhsu: last line before enter boot loader
   call bootmain
 
   # If bootmain returns (it shouldn't), loop.
