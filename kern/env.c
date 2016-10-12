@@ -117,6 +117,15 @@ env_init(void)
 	// Set up envs array
 	// LAB 3: Your code here.
 
+    //jyhsu: my code
+    int i;
+    for (i = NENV-1; i >= 0; i--) {
+        envs[i].env_id = 0;
+        envs[i].env_status = ENV_FREE;
+        envs[i].env_link = env_free_list;
+        env_free_list = &envs[i];
+    }
+
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -179,6 +188,14 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
+
+    //jyhsu: my code
+    p->pp_ref++;
+    e->env_pgdir = page2kva(p);
+    for (i = PDX(UTOP); i < NPDENTRIES; i++) {
+        if (i >= ULIM || i < UVPT)
+            e->env_pgdir[i] = kern_pgdir[i];
+    }
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -267,6 +284,17 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+
+    //jyhsu: my code
+    int i, n = (ROUNDUP(va+len+1, PGSIZE)-ROUNDDOWN(va, PGSIZE))/PGSIZE;
+    struct PageInfo *page;
+
+    for (i = 0; i < n; i++) {
+        if (!(page = page_alloc(0)))
+            panic("Not Enough Memory when page_alloc in region_alloc!\n");
+        if (page_insert(e->env_pgdir, page, va+i*PGSIZE, PTE_U | PTE_W | PTE_P) < 0)
+            panic("Not Enough Memory when page_insertin region_alloc!\n");
+    }
 }
 
 //
@@ -324,10 +352,57 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
 
+    //jyhsu: my code
+    char *va, *pf, *a, *f;
+    void *entry;
+    pte_t *pte;
+    size_t m_size, f_size;
+    struct PageInfo *page;
+    struct Elf *elfh = (struct Elf *)binary;
+    struct Proghdr *ph = (struct Proghdr *) ((uint8_t *)elfh + elfh->e_phoff);
+    struct Proghdr *eph = ph + elfh->e_phnum;
+
+    for (; ph < eph; ph++) {
+        if (ph->p_type == ELF_PROG_LOAD) {
+            va = (char *) PGADDR(PDX(ph->p_va), PTX(ph->p_va), PGOFF(ph->p_va));
+            pf = (char *) PGADDR(PDX(binary+ph->p_offset), PTX(binary+ph->p_offset), PGOFF(binary+ph->p_offset));
+            region_alloc(e, (void *)va, (size_t)ph->p_memsz);
+
+            a = va;
+            f = pf;
+            while (a < va + ph->p_memsz) {
+                page = page_lookup(e->env_pgdir, a, &pte);
+                m_size = (size_t) (PGSIZE - PGOFF(a));
+                f_size = (size_t)ph->p_filesz - (size_t)(f - pf);
+
+                if (f >= pf + ph->p_filesz)
+                    memset(page2kva(page)+PGOFF(a), 0, m_size);
+                else if (f_size < m_size) {
+                    memcpy(page2kva(page)+PGOFF(a), f, f_size);
+                    memset(page2kva(page)+PGOFF(a), 0, m_size-f_size);
+                }
+                else
+                    memcpy(page2kva(page)+PGOFF(a), f, m_size);
+
+                a = a + m_size;
+                f = f + m_size;
+            }
+        }
+    }
+    entry = (void *) PGADDR(PDX(elfh->e_entry), PTX(elfh->e_entry), PGOFF(elfh->e_entry));
+    //e->env_tf.tf_eip = page2pa(page_lookup(e->env_pgdir, entry, &pte));
+    e->env_tf.tf_eip = elfh->e_entry;
+
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+
+    //jyhsu: my code
+    if (!(page = page_alloc(0)))
+        panic("Not enough memory for user stack init in load_icode!\n");
+    if (page_insert(e->env_pgdir, page, PGADDR(PDX(USTACKTOP-PGSIZE), PTX(USTACKTOP-PGSIZE), PGOFF(USTACKTOP-PGSIZE)), PTE_U | PTE_W | PTE_P))
+        panic("Not enough memory for stack page insert in load_icode!\n");
 }
 
 //
@@ -341,6 +416,11 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+    struct Env *e;
+    if (env_alloc(&e, 0) < 0)
+        panic("env_alloc failed when env_create at ELF %x\n", binary);
+    load_icode(e, binary);
+    e->env_type = type;
 }
 
 //
@@ -457,6 +537,17 @@ env_run(struct Env *e)
 
 	// LAB 3: Your code here.
 
-	panic("env_run not yet implemented");
+    //jyhsu: my code
+    if (curenv)
+        if (curenv->env_status == ENV_RUNNING)
+            curenv->env_status = ENV_RUNNABLE;
+
+    curenv = e;
+    curenv->env_status = ENV_RUNNING;
+    curenv->env_runs++;
+    lcr3(PADDR(curenv->env_pgdir));
+    env_pop_tf(&(curenv->env_tf));
+
+	//panic("env_run not yet implemented");
 }
 
