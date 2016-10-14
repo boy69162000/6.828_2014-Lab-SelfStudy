@@ -379,7 +379,7 @@ load_icode(struct Env *e, uint8_t *binary)
                     memset(page2kva(page)+PGOFF(a), 0, m_size);
                 else if (f_size < m_size) {
                     memcpy(page2kva(page)+PGOFF(a), f, f_size);
-                    memset(page2kva(page)+PGOFF(a), 0, m_size-f_size);
+                    memset(page2kva(page)+PGOFF(a)+f_size, 0, m_size-f_size);
                 }
                 else
                     memcpy(page2kva(page)+PGOFF(a), f, m_size);

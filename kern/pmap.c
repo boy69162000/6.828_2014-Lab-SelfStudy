@@ -127,6 +127,7 @@ boot_alloc(uint32_t n)
 void
 mem_init(void)
 {
+    char *a;
 	uint32_t cr0, i;
 	size_t n;
     pte_t *pte;
@@ -199,8 +200,9 @@ mem_init(void)
     //jyhsu: my code
     n = sizeof(struct PageInfo)*npages;
     for (i = 0; i < n; i += PGSIZE) {
-        pte = pgdir_walk(kern_pgdir, pages+i, 1);
-        *pte = (*pte & ~PTE_U) | PTE_W;
+        a = (char *)pages;
+        pte = pgdir_walk(kern_pgdir, a+i, 1);
+        *pte = (*pte & ~PTE_U) | PTE_W | PTE_P;
     }
     boot_map_region(kern_pgdir, UPAGES, ROUNDUP(n, PGSIZE), PADDR(pages), PTE_U | PTE_P);
     
@@ -215,8 +217,9 @@ mem_init(void)
     //jyhsu: my code
     n = sizeof(struct Env)*NENV;
     for (i = 0; i < n; i += PGSIZE) {
-        pte = pgdir_walk(kern_pgdir, envs+i, 1);
-        *pte = (*pte & ~PTE_U) | PTE_W;
+        a = (char *)envs;
+        pte = pgdir_walk(kern_pgdir, a+i, 1);
+        *pte = (*pte & ~PTE_U) | PTE_W | PTE_P;
     }
     boot_map_region(kern_pgdir, UENVS, ROUNDUP(n, PGSIZE), PADDR(envs), PTE_U | PTE_P);
 
@@ -628,6 +631,24 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
+
+    //jyhsu: my code
+    char *a = (char *) ROUNDDOWN(va, PGSIZE);
+    char *b = (char *) ROUNDUP(va+len+1, PGSIZE);
+    struct PageInfo *page;
+    pte_t *pte;
+
+    for (; a < b; a += PGSIZE) {
+        page = page_lookup(env->env_pgdir, a, &pte);
+        user_mem_check_addr = (uintptr_t) MIN(MAX((void *)a, va), va+len);
+
+        if (a >= (char *)ULIM)
+            return -E_FAULT;
+        if (!page)
+            return -E_FAULT;
+        if (!(*pte & perm) || !(*pte & PTE_P))
+            return -E_FAULT;
+    }
 
 	return 0;
 }

@@ -78,10 +78,14 @@
 
     //jyhsu: my code
 _alltraps:
+    pushl %eax
     movl $GD_UD, %eax
     orl $3, %eax
-    pushl %eax //ds
-    pushl %eax //es
+    movw %ax, %ds
+    movw %ax, %es
+    popl %eax
+    pushl %ds //ds
+    pushl %es //es
     pushal     //normal reg
 
     movw $GD_KD, %ax
