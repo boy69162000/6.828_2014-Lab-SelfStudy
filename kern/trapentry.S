@@ -48,9 +48,53 @@
  * Lab 3: Your code here for generating entry points for the different traps.
  */
 
-
+    //jyhsu: my code
+    TRAPHANDLER_NOEC(DIVIDE, T_DIVIDE);
+    TRAPHANDLER_NOEC(DEBUG, T_DEBUG);
+    TRAPHANDLER_NOEC(NMI, T_NMI);
+    TRAPHANDLER_NOEC(BRKPT, T_BRKPT);
+    TRAPHANDLER_NOEC(OFLOW, T_OFLOW);
+    TRAPHANDLER_NOEC(BOUND, T_BOUND);
+    TRAPHANDLER_NOEC(ILLOP, T_ILLOP);
+    TRAPHANDLER_NOEC(DEVICE, T_DEVICE);
+    TRAPHANDLER(DBLFLT, T_DBLFLT);
+    //9 is reserved
+    TRAPHANDLER(TSS, T_TSS);
+    TRAPHANDLER(SEGNP, T_SEGNP);
+    TRAPHANDLER(STACK, T_STACK);
+    TRAPHANDLER(GPFLT, T_GPFLT);
+    TRAPHANDLER(PGFLT, T_PGFLT);
+    //15 is reserved
+    TRAPHANDLER_NOEC(FPERR, T_FPERR);
+    TRAPHANDLER(ALIGN, T_ALIGN);
+    TRAPHANDLER_NOEC(MCHK, T_MCHK);
+    TRAPHANDLER_NOEC(SIMDERR, T_SIMDERR);
+    //20-31 are reserved
+    TRAPHANDLER_NOEC(SYSCALL, T_SYSCALL); //48
+    TRAPHANDLER_NOEC(DEFAULT, T_DEFAULT); //500, none of the traps above
 
 /*
  * Lab 3: Your code here for _alltraps
  */
 
+    //jyhsu: my code
+_alltraps:
+    pushl %eax
+    movl $GD_UD, %eax
+    orl $3, %eax
+    movw %ax, %ds
+    movw %ax, %es
+    popl %eax
+    pushl %ds //ds
+    pushl %es //es
+    pushal     //normal reg
+
+    movw $GD_KD, %ax
+    movw %ax, %ds
+    movw %ax, %es
+
+    pushl %esp
+    call trap
+
+trapfail:
+    jmp trapfail

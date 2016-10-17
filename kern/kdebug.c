@@ -142,6 +142,7 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 		// Make sure this memory is valid.
 		// Return -1 if it is not.  Hint: Call user_mem_check.
 		// LAB 3: Your code here.
+        user_mem_check(curenv, (void *)usd, sizeof(struct UserStabData), PTE_U | PTE_P);
 
 		stabs = usd->stabs;
 		stab_end = usd->stab_end;
@@ -150,6 +151,9 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 
 		// Make sure the STABS and string table memory is valid.
 		// LAB 3: Your code here.
+
+        user_mem_check(curenv, stabs, (stab_end-stabs)*sizeof(struct Stab), PTE_U | PTE_P);
+        user_mem_check(curenv, stabstr, stabstr_end-stabstr, PTE_U | PTE_P);
 	}
 
 	// String table validity checks
@@ -205,6 +209,18 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	//	which one.
 	// Your code here.
 
+    //jyhsu: my code
+    stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
+
+    if (lline > rline)
+        return -1;
+
+    if (lfun <= rfun) { //jyhsu: normal file
+        info->eip_line = stabs[lline].n_value;
+    }
+    else {              //jyhsu: asm file
+        info->eip_line = stabs[lline].n_value - stabs[lfun].n_value;
+    }
 
 	// Search backwards from the line number for the relevant filename
 	// stab.

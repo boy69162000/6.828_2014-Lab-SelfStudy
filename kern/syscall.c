@@ -23,6 +23,11 @@ sys_cputs(const char *s, size_t len)
 
 	// LAB 3: Your code here.
 
+    //jyhsu: my code
+    if ((curenv->env_tf.tf_cs & 3) == 3) {
+        user_mem_assert(curenv, (void *)s, len, PTE_U | PTE_P);
+    }
+
 	// Print the string supplied by the user.
 	cprintf("%.*s", len, s);
 }
@@ -271,11 +276,27 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
 
-	panic("syscall not implemented");
+    //jyhsu: my code
+	//panic("syscall not implemented");
+
+    char *s;
 
 	switch (syscallno) {
-	default:
-		return -E_NO_SYS;
+        case SYS_cputs:
+            sys_cputs((char *)a1, a2);
+            return 0;
+            break;
+        case SYS_cgetc:
+            return sys_cgetc();
+            break;
+        case SYS_getenvid:
+            return sys_getenvid();
+            break;
+        case SYS_env_destroy:
+            return sys_env_destroy(a1);
+            break;
+	    default:
+		    return -E_NO_SYS;
 	}
 }
 
