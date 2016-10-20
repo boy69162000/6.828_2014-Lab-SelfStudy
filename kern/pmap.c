@@ -239,10 +239,12 @@ mem_init(void)
 
     //jyhsu: my code
     boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W | PTE_P);
+    /*
     for (i = 0; i < PTSIZE-KSTKSIZE; i += PGSIZE) {
         pte = pgdir_walk(kern_pgdir, (void *)(KSTACKTOP-PTSIZE+i), 1);
         *pte &= ~PTE_P;
     }
+    */
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -254,7 +256,7 @@ mem_init(void)
 	// Your code goes here:
 
     //jyhsu: my code
-    boot_map_region(kern_pgdir, KERNBASE, 0xffffffff-KERNBASE, 0x0, PTE_W | PTE_P);
+    boot_map_region(kern_pgdir, KERNBASE, 0xffffffff-KERNBASE+1, 0x0, PTE_W | PTE_P);
 
     //jyhsu: Maximum physical memory this manage system can support is
     //       256MB (0x10000000) since users can only access memory by 
@@ -314,6 +316,13 @@ mem_init_mp(void)
 	//
 	// LAB 4: Your code here:
 
+    //jyhsu: my code
+    int i;
+
+    for (i = 0; i < NCPU; i++) {
+        boot_map_region(kern_pgdir, KSTACKTOP-i*(KSTKSIZE+KSTKGAP)-KSTKSIZE, KSTKSIZE, PADDR(&percpu_kstacks[i]), PTE_W | PTE_P);
+    }
+
 }
 
 // --------------------------------------------------------------
@@ -363,6 +372,8 @@ page_init(void)
 
     //jyhsu: changed code below
     for (i = 1; i < npages_basemem; i++) { //jyhsu: base mem
+        if (i == MPENTRY_PADDR/PGSIZE)
+            continue;
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
@@ -673,7 +684,17 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+
+    //jyhsu: my code
+	//panic("mmio_map_regioa not implemented");
+    uintptr_t ret_base = base;
+
+    if (base + ROUNDUP(size, PGSIZE) > MMIOLIM)
+        panic("Not enough MMI/O space in mmio_map_region!");
+
+    boot_map_region(kern_pgdir, base, ROUNDUP(size, PGSIZE), pa, PTE_PCD | PTE_PWT | PTE_W | PTE_P);
+    base += ROUNDUP(size, PGSIZE);
+    return (void *)ret_base;
 }
 
 static uintptr_t user_mem_check_addr;

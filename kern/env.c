@@ -532,6 +532,7 @@ env_pop_tf(struct Trapframe *tf)
 		"\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
 		"\tiret"
 		: : "g" (tf) : "memory");
+
 	panic("iret failed");  /* mostly to placate the compiler */
 }
 
@@ -572,6 +573,8 @@ env_run(struct Env *e)
     curenv->env_status = ENV_RUNNING;
     curenv->env_runs++;
     lcr3(PADDR(curenv->env_pgdir));
+    //jyhsu: release kernel lock after switching to user address space
+    unlock_kernel();
     env_pop_tf(&(curenv->env_tf));
 
 	//panic("env_run not yet implemented");
