@@ -15,6 +15,7 @@ static void
 pgfault(struct UTrapframe *utf)
 {
 	void *addr = (void *) utf->utf_fault_va;
+    pte_t *pte;
 	uint32_t err = utf->utf_err;
 	int r;
 
@@ -26,6 +27,14 @@ pgfault(struct UTrapframe *utf)
 
 	// LAB 4: Your code here.
 
+    //jyhsu: my code
+    if ((err & (FEC_PR | FEC_WR)) != (FEC_PR | FEC_WR)) {
+        cprintf("[%08x] user pg fault va %08x ip %08x\n", thisenv->env_id, addr, utf->utf_eip);
+        panic("actual pg fault while handling COW!");
+    }
+    if ((uvpt[PGNUM(addr)] & PTE_COW) != PTE_COW)
+        panic("write access RO pg while handling COW!");
+
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
 	// page to the old page's address.
@@ -34,7 +43,16 @@ pgfault(struct UTrapframe *utf)
 
 	// LAB 4: Your code here.
 
-	panic("pgfault not implemented");
+    //jyhsu: my code
+	//panic("pgfault not implemented");
+    addr = (void *)PTE_ADDR(addr);
+    if (sys_page_alloc(thisenv->env_id, (void *)PFTEMP, PTE_W | PTE_U) < 0)
+        panic("new page alloc fail while handling COW!");
+    memcpy((void *)PFTEMP, addr, PGSIZE);
+    if (sys_page_unmap(thisenv->env_id, addr) < 0)
+        panic("unmap old page failed while handling COW!");
+    if (sys_page_map(thisenv->env_id, (void *)PFTEMP, thisenv->env_id, addr, PTE_W | PTE_U) < 0)
+        panic("map new page failed while handling COW!");
 }
 
 //
@@ -54,7 +72,19 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+
+    //jyhsu: my code
+	//panic("duppage not implemented");
+    int perm = PTE_U;
+
+    if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW))
+        perm |= PTE_COW;
+
+    if (sys_page_map(thisenv->env_id, (void *)(pn*PGSIZE), envid, (void *)(pn*PGSIZE), perm) < 0)
+        panic("dupe page failed while handling COW!");
+    if (sys_page_map(thisenv->env_id, (void *)(pn*PGSIZE), thisenv->env_id, (void *)(pn*PGSIZE), perm) < 0)
+        panic("remap page with perm COW failed while handling COW!");
+
 	return 0;
 }
 
@@ -78,7 +108,49 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+
+    //jyhsu: my code
+	//panic("fork not implemented");
+    envid_t parent, child;
+    uintptr_t pg_thisenv = (uintptr_t) PTE_ADDR(&thisenv);
+    unsigned i;
+    int err = 0;
+
+    set_pgfault_handler(pgfault);
+    if ((child = sys_exofork()) == 0)
+        return 0;
+    parent = thisenv->env_id;
+
+    if (sys_env_set_pgfault_upcall(child, envs[ENVX(parent)].env_pgfault_upcall) < 0)
+        panic("set child pg fault upcall failed while forking!");
+
+    for (i = 0; i < UTOP; i += PGSIZE) {
+        if (i == UXSTACKTOP-PGSIZE) {
+            if (sys_page_alloc(child, (void *)i, PTE_W | PTE_U) < 0)
+                panic("child Xstack alloc failed while forking!");
+        }
+        else if (i == pg_thisenv) {
+            if (sys_page_alloc(parent, (void *)PFTEMP, PTE_W | PTE_U) < 0)
+                panic("page alloc failed while modifying child's thisenv!");
+
+            thisenv = &envs[ENVX(child)];
+            memcpy((void *)PFTEMP, (void *)pg_thisenv, PGSIZE);
+            thisenv = &envs[ENVX(parent)];
+
+            if ((err = sys_page_map(parent, (void *)PFTEMP, child, (void *)pg_thisenv, PTE_W | PTE_U)) < 0)
+                panic("page map failed while modifying child's thisenv!");
+        }
+        else {
+            if ((uvpd[PDX(i)] & PTE_P) == PTE_P) {
+                if ((uvpt[PGNUM(i)] & PTE_P) == PTE_P) {
+                    duppage(child, PGNUM(i));
+                }
+            }
+        }
+    }
+
+    sys_env_set_status(child, ENV_RUNNABLE);
+    return child;
 }
 
 // Challenge!
