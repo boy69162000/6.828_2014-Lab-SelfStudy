@@ -150,6 +150,7 @@ fork(void)
     }
 
     sys_env_set_status(child, ENV_RUNNABLE);
+    cprintf("[%08x] fork env %08x\n", parent, child);
     return child;
 }
 

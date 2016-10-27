@@ -49,7 +49,8 @@ sched_yield(void)
     }
 
     if (e) {
-        env_run(e);
+        if (e->env_status == ENV_RUNNING || e->env_status == ENV_RUNNABLE)
+            env_run(e);
     }
 
 	// sched_halt never returns

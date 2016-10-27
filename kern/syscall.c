@@ -339,7 +339,39 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_try_send not implemented");
+
+    //jyhsu: my code
+	//panic("sys_ipc_try_send not implemented");
+    struct Env *snd, *rcv;
+    struct PageInfo *page;
+    pte_t *pte;
+    int err;
+
+    snd = curenv;
+    if ((err = envid2env(envid, &rcv, 0)) < 0)
+        return err;
+    if (!rcv->env_ipc_recving)
+        return -E_IPC_NOT_RECV;
+    if (srcva < (void *)UTOP) {
+        if ((perm & ~PTE_SYSCALL) != 0 || PGOFF(srcva) != 0)
+            return -E_INVAL;
+        if (!(page = page_lookup(snd->env_pgdir, srcva, &pte)))
+            return -E_INVAL;
+        if ((perm & PTE_W) && !(*pte & PTE_W))
+            return -E_INVAL;
+        if ((err = page_insert(rcv->env_pgdir, page, rcv->env_ipc_dstva, perm | PTE_U | PTE_P)) < 0)
+            return err;
+        rcv->env_ipc_perm = perm;
+    }
+    else
+        rcv->env_ipc_perm = 0;
+
+    rcv->env_ipc_recving = 0;
+    rcv->env_ipc_value = value;
+    rcv->env_ipc_from = snd->env_id;
+    rcv->env_status = ENV_RUNNABLE;
+
+    return 0;
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -357,7 +389,22 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
+
+    //jyhsu: my code
+	//panic("sys_ipc_recv not implemented");
+    struct Env *rcv = curenv;
+
+    if (dstva < (void *)UTOP) {
+        if (PGOFF(dstva) != 0)
+            return -E_INVAL;
+    }
+
+    rcv->env_status = ENV_NOT_RUNNABLE;
+    rcv->env_ipc_dstva = dstva;
+    rcv->env_tf.tf_regs.reg_eax = 0;
+    rcv->env_ipc_recving = 1;
+    sched_yield();
+
 	return 0;
 }
 
@@ -399,6 +446,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
             return sys_page_unmap(a1, (void *)a2);
         case SYS_env_set_pgfault_upcall:
             return sys_env_set_pgfault_upcall(a1, (void *)a2);
+        case SYS_ipc_try_send:
+            return sys_ipc_try_send(a1, a2, (void *)a3, a4);
+        case SYS_ipc_recv:
+            return sys_ipc_recv((void *)a1);
 	    default:
 		    return -E_NO_SYS;
 	}
