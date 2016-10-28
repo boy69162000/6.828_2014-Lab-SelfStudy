@@ -49,15 +49,20 @@ bootmain(void)
 
 	// load each program segment (ignores ph flags)
 	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
+    //jyhsu: sizeof(Elf)=52bytes,so e_phoff should be 0x34
 	eph = ph + ELFHDR->e_phnum;
+    //jyhsu: sizeof(ph)=32bytes, so asm codes of this line contain "shl 5,num"
 	for (; ph < eph; ph++)
 		// p_pa is the load address of this segment (as well
 		// as the physical address)
 		readseg(ph->p_pa, ph->p_memsz, ph->p_offset);
+        //jyhsu: p_memsz determines how many bytes are loaded from disk
 
 	// call the entry point from the ELF header
 	// note: does not return!
 	((void (*)(void)) (ELFHDR->e_entry))();
+    //jyhsu: so we can get the address of first instruction of the kernel
+    //       from e_entry(0x0010000c)
 
 bad:
 	outw(0x8A00, 0x8A00);
@@ -68,6 +73,7 @@ bad:
 
 // Read 'count' bytes at 'offset' from kernel into physical address 'pa'.
 // Might copy more than asked
+//(jyhsu: because the round-down for matching SECTSIZE)
 void
 readseg(uint32_t pa, uint32_t count, uint32_t offset)
 {
@@ -121,5 +127,6 @@ readsect(void *dst, uint32_t offset)
 
 	// read a sector
 	insl(0x1F0, dst, SECTSIZE/4);
+    //jyhsu: a long word is 4 bytes, so we load SECTSIZE/4=128 lws.
 }
 

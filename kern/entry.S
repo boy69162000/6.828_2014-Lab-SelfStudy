@@ -58,16 +58,25 @@ entry:
 	movl	$(RELOC(entry_pgdir)), %eax
 	movl	%eax, %cr3
 	# Turn on paging.
-	movl	%cr0, %eax
+	movl	%cr0, %eax  
 	orl	$(CR0_PE|CR0_PG|CR0_WP), %eax
 	movl	%eax, %cr0
+    #jyhsu: Paging is enabled after "movl %eax, %cr0"
 
 	# Now paging is enabled, but we're still running at a low EIP
 	# (why is this okay?).  Jump up above KERNBASE before entering
 	# C code.
+    #jyhsu: Running at a low EIP is ok because it also mapping low
+    #       physical address to real address (but not writable).
+    #jyhsu: In lab2, between page enabled and jumpped to KERNBASE, 
+    #       entry_pgdir is a simple page dir, and only do two mappings:
+    #       maps pa to real addr, and maps KERNBASE to real addr.
+    #       This is how the kernel handle this situation.
 	mov	$relocated, %eax
 	jmp	*%eax
 relocated:
+    #jyhsu: We're now in virtual address. So if commenting out
+    #       "movl %eax, %cr0", the code will fail here(nuke EBP).
 
 	# Clear the frame pointer register (EBP)
 	# so that once we get into debugging C code,
@@ -75,7 +84,7 @@ relocated:
 	movl	$0x0,%ebp			# nuke frame pointer
 
 	# Set the stack pointer
-	movl	$(bootstacktop),%esp
+	movl	$(bootstacktop),%esp #jyhsu: init kern stack ptr
 
 	# now to C code
 	call	i386_init
@@ -89,9 +98,9 @@ spin:	jmp	spin
 # boot stack
 ###################################################################
 	.p2align	PGSHIFT		# force page alignment
-	.globl		bootstack
+	.globl		bootstack    #jyhsu: 0xf0108000
 bootstack:
-	.space		KSTKSIZE
-	.globl		bootstacktop   
+	.space		KSTKSIZE     #jyhsu: kern stack size = 8*PGSIZE = 0x8000
+	.globl		bootstacktop #jyhsu: 0xf0110000, stack ptr
 bootstacktop:
 

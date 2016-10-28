@@ -61,6 +61,7 @@ QEMU := $(shell if which qemu > /dev/null; \
 	echo "*** Is the directory containing the qemu binary in your PATH" 1>&2; \
 	echo "*** or have you tried setting the QEMU variable in conf/env.mk?" 1>&2; \
 	echo "***" 1>&2; exit 1)
+QEMU += -show-cursor
 endif
 
 # try to generate a unique GDB port
