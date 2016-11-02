@@ -28,6 +28,10 @@ pgfault(struct UTrapframe *utf)
 	// LAB 4: Your code here.
 
     //jyhsu: my code
+    if (uvpt[PGNUM(addr)] & PTE_SHARE) {
+        cprintf("[%08x] user pg fault va %08x ip %08x\n", thisenv->env_id, addr, utf->utf_eip);
+        panic("shared pg fault while handling COW!");
+    }
     if ((err & (FEC_PR | FEC_WR)) != (FEC_PR | FEC_WR)) {
         cprintf("[%08x] user pg fault va %08x ip %08x\n", thisenv->env_id, addr, utf->utf_eip);
         panic("actual pg fault while handling COW!");
@@ -46,10 +50,10 @@ pgfault(struct UTrapframe *utf)
     //jyhsu: my code
 	//panic("pgfault not implemented");
     addr = (void *)PTE_ADDR(addr);
-    if (sys_page_alloc(thisenv->env_id, (void *)PFTEMP, PTE_W | PTE_U) < 0)
+    if (sys_page_alloc(0, (void *)PFTEMP, PTE_W | PTE_U) < 0)
         panic("new page alloc fail while handling COW!");
     memcpy((void *)PFTEMP, addr, PGSIZE);
-    if (sys_page_unmap(thisenv->env_id, addr) < 0)
+    if (sys_page_unmap(0, addr) < 0)
         panic("unmap old page failed while handling COW!");
     if (sys_page_map(thisenv->env_id, (void *)PFTEMP, thisenv->env_id, addr, PTE_W | PTE_U) < 0)
         panic("map new page failed while handling COW!");
@@ -77,12 +81,14 @@ duppage(envid_t envid, unsigned pn)
 	//panic("duppage not implemented");
     int perm = PTE_U;
 
-    if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW))
+    if (uvpt[pn] & PTE_SHARE)
+        perm |= (uvpt[pn] & PTE_SYSCALL);
+    else if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW))
         perm |= PTE_COW;
 
-    if (sys_page_map(thisenv->env_id, (void *)(pn*PGSIZE), envid, (void *)(pn*PGSIZE), perm) < 0)
+    if (sys_page_map(0, (void *)(pn*PGSIZE), envid, (void *)(pn*PGSIZE), perm) < 0)
         panic("dupe page failed while handling COW!");
-    if (sys_page_map(thisenv->env_id, (void *)(pn*PGSIZE), thisenv->env_id, (void *)(pn*PGSIZE), perm) < 0)
+    if (sys_page_map(0, (void *)(pn*PGSIZE), 0, (void *)(pn*PGSIZE), perm) < 0)
         panic("remap page with perm COW failed while handling COW!");
 
 	return 0;

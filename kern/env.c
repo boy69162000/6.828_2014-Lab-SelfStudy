@@ -267,6 +267,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
     //jyhsu: my code
     e->env_tf.tf_eflags |= FL_IF;
+    e->env_tf.tf_eflags &= FL_IOPL_0;
 
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
@@ -434,6 +435,7 @@ env_create(uint8_t *binary, enum EnvType type)
 
     //jyhsu: my code
     struct Env *e;
+
     if (env_alloc(&e, 0) < 0)
         panic("env_alloc failed when env_create at ELF %x\n", binary);
     load_icode(e, binary);
@@ -441,6 +443,11 @@ env_create(uint8_t *binary, enum EnvType type)
 
     // If this is the file server (type == ENV_TYPE_FS) give it I/O privileges.
     // LAB 5: Your code here.
+
+    //jyhsu: my code
+    if (e->env_type == ENV_TYPE_FS) {
+        e->env_tf.tf_eflags |= FL_IOPL_3;
+    }
 
 }
 

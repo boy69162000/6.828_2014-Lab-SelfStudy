@@ -62,7 +62,19 @@ alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+
+    //jyhsu: my code
+	//panic("alloc_block not implemented");
+    uint32_t blockno;
+
+    for (blockno = 1; blockno < super->s_nblocks; blockno++) {
+        if (block_is_free(blockno)) {
+	        bitmap[blockno/32] &= ~(1<<(blockno%32));
+            flush_block((void *)&bitmap[blockno/32]);
+            return blockno;
+        }
+    }
+
 	return -E_NO_DISK;
 }
 
@@ -134,8 +146,34 @@ fs_init(void)
 static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
-       // LAB 5: Your code here.
-       panic("file_block_walk not implemented");
+    // LAB 5: Your code here.
+
+    //jyhsu: my code    
+    //panic("file_block_walk not implemented");
+    uint32_t *indirect;
+
+    if (filebno < NDIRECT) {
+       *ppdiskbno = (uint32_t *) &f->f_direct[filebno];
+    }
+    else if (filebno < NDIRECT+NINDIRECT) {
+        if (f->f_indirect == 0) {
+            if (!alloc) {
+                return -E_NOT_FOUND;
+            }
+            else if ((f->f_indirect = alloc_block()) < 0) {
+                f->f_indirect = 0;
+                return -E_NO_DISK;
+            }
+        }
+
+        indirect = (uint32_t *) diskaddr(f->f_indirect);
+        *ppdiskbno = &indirect[filebno];
+    }
+    else {
+        return -E_INVAL;
+    }
+
+    return 0;
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -150,7 +188,23 @@ int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
        // LAB 5: Your code here.
-       panic("file_get_block not implemented");
+
+       //jyhsu: my code
+       //panic("file_get_block not implemented");
+        uint32_t *diskbno;
+        int r;
+
+        if ((r = file_block_walk(f, filebno, &diskbno, 1)) < 0)
+            return r;
+        if (*diskbno == 0) {
+            if ((*diskbno = alloc_block()) < 0) {
+                *diskbno = 0;
+                return -E_NO_DISK;
+            }
+        }
+            
+        *blk = (char *) diskaddr(*diskbno);
+        return 0;
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
