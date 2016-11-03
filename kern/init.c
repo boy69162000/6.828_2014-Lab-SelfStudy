@@ -19,6 +19,37 @@
 
 static void boot_aps(void);
 
+// Test the stack backtrace function (lab 1 only)
+//jyhsu: func located at 0xf0100040
+void
+test_backtrace(int x)
+{
+    /*jyhsu:
+        (in parent)
+        push {last_arg}
+        ...
+        push {first_arg}
+        call {blah} #ret addr pushing done here
+        (in func)
+        mov %esp, %ebp
+        push %ebp
+        (normal func code)
+        
+        stack:
+            ---------high addr, esp before preparing func call
+            func arg
+            ret addr
+            pushed ebp
+            ---------low addr, esp before normal func code
+    */
+
+    cprintf("entering test_backtrace %d\n", x);
+	if (x > 0)
+		test_backtrace(x-1);
+	else
+		mon_backtrace(0, 0, 0);
+	cprintf("leaving test_backtrace %d\n", x);
+}
 
 void
 i386_init(void)
@@ -33,6 +64,17 @@ i386_init(void)
 	// Initialize the console.
 	// Can't call cprintf until after we do this!
 	cons_init();
+
+    //jyhsu: Lab1 test code part 1
+    /*
+    unsigned i = 0x00646c72;
+    cprintf("H%x, Wo%s", 57616, &i); //57616=0xe110, 72='r', 6c='l', 64='d'
+    */
+
+    //jyhsu: Lab1 test code part 2
+    /*
+    cprintf("x=%d y=%d", 3); //va_arg does not check if ap reach eo list
+    */
 
 	cprintf("6828 decimal is %o octal!\n", 6828);
 
@@ -57,6 +99,9 @@ i386_init(void)
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
 
+    //jyhsu: my code
+    lock_kernel();
+
 	// Starting non-boot CPUs
 	boot_aps();
 
@@ -73,7 +118,10 @@ i386_init(void)
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_icode, ENV_TYPE_USER);
+	ENV_CREATE(user_spawnhello, ENV_TYPE_USER);
+    //ENV_CREATE(user_faultdie, ENV_TYPE_USER);
+    //ENV_CREATE(user_faultalloc, ENV_TYPE_USER);
+    //ENV_CREATE(user_faultallocbad, ENV_TYPE_USER);
 #endif // TEST*
 
 	// Should not be necessary - drains keyboard because interrupt has given up.
@@ -134,8 +182,12 @@ mp_main(void)
 	//
 	// Your code here:
 
+    //jyhsu: my code
+    lock_kernel();
+    sched_yield();
+
 	// Remove this after you finish Exercise 4
-	for (;;);
+	//for (;;);
 }
 
 /*

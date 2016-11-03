@@ -301,6 +301,21 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+
+    //jyhsu: my code
+    uint32_t i;
+    int r, perm;
+
+    for (i = 0; i < UTOP; i += PGSIZE) {
+        if (uvpd[PDX(i)] & PTE_P) {
+            if ((uvpt[PGNUM(i)] & PTE_P) && (uvpt[PGNUM(i)] & PTE_SHARE)) {
+                perm = (uvpt[PGNUM(i)] & PTE_SYSCALL) | PTE_U;
+                if ((r = sys_page_map(0, (void *)i, child, (void *)i, perm)) < 0)
+                    panic("cp shared pg failed while spawning!");
+            }
+        }
+    }
+
 	return 0;
 }
 

@@ -66,17 +66,48 @@ _pgfault_upcall:
 	//
 	// LAB 4: Your code here.
 
+    //jyhsu: my code
+    //pop fault_va and err which useless now
+    popl %eax
+    popl %eax
+    //push trap time eip to trap time stack w/o changing current esp
+    movl 32(%esp), %ebx
+    movl 40(%esp), %eax
+    subl $4, %eax
+    movl %ebx, (%eax)
+    movl %eax, 40(%esp)
+
 	// Restore the trap-time registers.  After you do this, you
 	// can no longer modify any general-purpose registers.
 	// LAB 4: Your code here.
+
+    //jyhsu: my code
+    popl %edi
+    popl %esi
+    popl %ebp
+    popl %ebx //oesp, useless
+    popl %ebx
+    popl %edx
+    popl %ecx
+    popl %eax
 
 	// Restore eflags from the stack.  After you do this, you can
 	// no longer use arithmetic operations or anything else that
 	// modifies eflags.
 	// LAB 4: Your code here.
 
+    //jyhsu: my code
+    addl $4, %esp   //skip eip because we have done with it
+    popf
+
 	// Switch back to the adjusted trap-time stack.
 	// LAB 4: Your code here.
 
+    //jyhsu: my code
+    popl %esp
+
 	// Return to re-execute the instruction that faulted.
 	// LAB 4: Your code here.
+
+    //jyhsu: my code
+    ret
